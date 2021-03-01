@@ -1,0 +1,29 @@
+
+import java.nio.file.Paths
+import groovy.json.JsonSlurper
+
+// .dart_tool/package_config.json
+def projectRoot = rootProject.projectDir.parentFile
+logger.log(LogLevel.DEBUG, "projectRoot = $projectRoot")
+
+def packageConfigJsonFile = Paths.get(projectRoot.absolutePath, ".dart_tool", "package_config.json").toFile()
+if (!packageConfigJsonFile.exists()) {
+    logger.log(LogLevel.WARN, "$packageConfigJsonFile NOT found.")
+    return
+}
+
+def object = new JsonSlurper().parseText(packageConfigJsonFile.text)
+assert object instanceof Map
+assert object.packages instanceof List
+// Includes the Flutter plugins that support the Android platform.
+object.packages.each { dependency ->
+    assert dependency.name instanceof String
+    assert dependency.rootUri instanceof String
+    def pluginDirectory = new File(dependency.rootUri, 'android')
+    if(dependency.name != rootProject.name && pluginDirectory.exists()) {
+        logger.log(LogLevel.DEBUG, "android plugin found: $pluginDirectory")
+        include ":${dependency.name}"
+        project(":${dependency.name}").projectDir = pluginDirectory
+    }
+}
+
